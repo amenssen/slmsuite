@@ -82,6 +82,8 @@ class Camera:
             Flips returned image up down.
             Used to determine :attr:`transform`.
         """
+        self.name = "Unnamed Camera"
+
         if rot in ("90", 1, "270", 3):
             self.shape = (width, height)
             self.default_shape = (width, height)
@@ -461,8 +463,77 @@ def view_continuous(cameras, cmap=None, facecolor=None, dpi=300):
         fig.canvas.flush_events()
 
 
+try:
+    import pyglet
+    import pyglet.gl as gl
+    import threading
+    import os
+    import ctypes
+except ImportError:
+    # pyglet not installed. Fail gracefully.
+    pyglet = None
 
+from slmsuite.misc.windowing import Window
+from matplotlib import colors
+import matplotlib.pyplot as plt
 
+class CameraMonitor(Window):
 
+    def __init__(self, cam, cmap="jet"):
+        """
 
+        """
+        self.cam = cam
+        self.shape = cam.shape
+        self.name = cam.name
 
+        self.thread = threading.Thread(target=self.main)
+
+        self.set_cmap(cmap=cmap)
+
+        self._create_window()
+
+        # window = self.window
+
+        @self.window.event
+        def on_resize(width, height):
+            print('The window was resized to %dx%d' % (width, height))
+
+        @self.window.event
+        def on_key_press(symbol, modifiers):
+            print('A key was pressed')
+            print(symbol, modifiers)
+            if symbol == pyglet.window.key.ESCAPE:
+                return pyglet.event.EVENT_HANDLED
+
+        self.write(np.random.random(self.shape))
+
+        pyglet.clock.tick()
+
+        time.sleep(.1)
+
+        self.thread.start()
+
+    def main(self):
+        print("RUNNING!")
+        pyglet.app.run()
+
+    def set_cmap(self, cmap="jet"):
+        if isinstance(cmap, str):
+            cmap = plt.get_cmap(cmap, self.cam.bitresolution)
+
+        self.cmap = cmap
+
+    def write(self, data):
+        """Writes to screen. See :class:`.SLM`."""
+
+        rgba = self.cmap(data, bytes=True)
+
+        print(rgba.shape)
+
+        # Write to buffer (self.buffer is the same as self.cbuffer).
+        np.copyto(self.buffer[:,:,0], rgba[:, :, 0])
+        np.copyto(self.buffer[:,:,1], rgba[:, :, 1])
+        np.copyto(self.buffer[:,:,2], rgba[:, :, 2])
+
+        self._flip()
