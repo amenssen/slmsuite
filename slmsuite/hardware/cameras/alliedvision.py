@@ -4,6 +4,10 @@ Install :mod:`vimba` by following the instructions at [1]_. Include the
 ``numpy-export`` flag in the ``pip install`` command, as the :class:`AlliedVision` class
 makes use of these features. See especially the vimba python manual [2]_ for reference.
 
+Note
+~~~~
+Color camera functionality is not currently implemented, and will lead to undefined behavior.
+
 References
 ----------
 .. [1] https://github.com/alliedvision/VimbaPython

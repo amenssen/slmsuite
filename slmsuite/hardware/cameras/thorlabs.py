@@ -7,6 +7,10 @@ After installing the SDK, extract the files in:
 ``~\\Program Files\\Thorlabs\\Scientific Imaging\\Scientific Camera Support\\Scientific_Camera_Interfaces.zip``.
 Follow the instructions in Python_README.txt.
 
+Note
+~~~~
+Color camera functionality is not currently implemented, and will lead to undefined behavior.
+
 References
 ----------
 .. [1] https://www.thorlabs.com/software_pages/ViewSoftwarePage.cfm?Code=ThorCam
@@ -346,7 +350,7 @@ class ThorCam(Camera):
         trigger : bool
             Whether or not to issue a software trigger.
         grab : bool
-            Whehter or not to grab the frame (blocking).
+            Whether or not to grab the frame (blocking).
 
         Returns
         -------

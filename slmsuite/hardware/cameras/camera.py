@@ -24,10 +24,10 @@ class Camera:
         Depth of a camera pixel well in bits.
     bitresolution : int
         Stores ``2**bitdepth``.
-    dx_um : float or None
+    dx_um : float OR None
         :math:`x` pixel pitch in microns. Defaults to ``None``.
         Potential future features will use this.
-    dy_um : float or None
+    dy_um : float OR None
         :math:`y` pixel pitch in microns. See :attr:`dx_um`.
     exposure_bounds_s : (float, float) OR None
         Shortest and longest allowable integration in seconds.
@@ -145,7 +145,7 @@ class Camera:
 
     def get_exposure(self):
         """
-        Abstract method to get the integration time in seconds. 
+        Abstract method to get the integration time in seconds.
         Used in :meth:`.autoexposure()`.
 
         Returns
@@ -157,7 +157,7 @@ class Camera:
 
     def set_exposure(self, exposure_s):
         """
-        Abstract method to set the integration time in seconds. 
+        Abstract method to set the integration time in seconds.
         Used in :meth:`.autoexposure()`.
 
         Parameters
@@ -169,7 +169,7 @@ class Camera:
 
     def set_woi(self, woi=None):
         """
-        Abstract method to narrow the imaging region to a 'window of interest' 
+        Abstract method to narrow the imaging region to a 'window of interest'
         for faster framerates.
 
         Parameters
@@ -188,7 +188,7 @@ class Camera:
 
     def flush(self, timeout_s=1):
         """
-        Abstract method to cycle the image buffer (if any) 
+        Abstract method to cycle the image buffer (if any)
         such that all new :meth:`.get_image()`
         calls yield fresh frames.
 
