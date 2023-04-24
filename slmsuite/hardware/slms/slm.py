@@ -185,11 +185,12 @@ class SLM:
 
     def load_vendor_phase_correction(self, file_path):
         """
-        Abstract method to load vendor-provided phase correction from file,
+        Loads vendor-provided phase correction from file,
         setting :attr:`~slmsuite.hardware.slms.slm.SLM.phase_correction`.
-        By default, a bitmap is read in and 
+        By default, this is interpreted as an image file and is padded or unpadded to
+        the shape of the SLM.
         Subclasses should implement vendor-specific routines for loading and
-        interpreting the file.
+        interpreting the file (e.g. :class:`Santec` loads a .csv).
 
         Parameters
         ----------
@@ -202,14 +203,16 @@ class SLM:
             :attr:`~slmsuite.hardware.slms.slm.SLM.phase_correction`,
             the vendor-provided phase correction.
         """
+        # Load an invert the image file (see phase sign convention rules in write).
         phase_correction = self.bitresolution - 1 - np.array(Image.open(file_path), dtype=float)
 
         if phase_correction.ndim != 2:
             raise ValueError("Expected 2D image; found shape {}.".format(phase_correction.shape))
-        
+
         phase_correction *= 2 * np.pi / (self.phase_scaling * self.bitresolution)
 
         # Deal with correction shape
+        # (this should be made into a toolbox method to supplement pad, unpad)
         file_shape_error = np.sign(np.array(phase_correction.shape) - np.array(self.shape))
 
         if np.abs(np.diff(file_shape_error)) > 1:
@@ -217,7 +220,7 @@ class SLM:
                 "Note sure how to pad or unpad correction shape {} to SLM shape {}."
                 .format(phase_correction.shape, self.shape)
             )
-        
+
         if np.any(file_shape_error > 1):
             self.phase_correction = toolbox.unpad(phase_correction, self.shape)
         elif np.any(file_shape_error < 1):
@@ -317,9 +320,9 @@ class SLM:
                then this data is **directly** passed to the
                SLM, without going through the "phase delay to grayscale" conversion
                defined in the private method :meth:`_phase2gray`. In this situation,
-               ``phase_correct`` and non-zero ``blaze_vector`` are **ignored**.
-               This is error-checked to validate that bits with greater significance than the
-               bitdepth of the SLM are zeroed (e.g. the final 6 bits of 16 bit data for a
+               ``phase_correct`` is **ignored**.
+               This is error-checked such that bits with greater significance than the
+               bitdepth of the SLM are zero (e.g. the final 6 bits of 16 bit data for a
                10-bit SLM). Integer data with type different from :attr:`display` leads
                to a TypeError.
 
@@ -390,8 +393,7 @@ class SLM:
 
             # Pass the data to self.display.
             if zero_phase:
-                # If None was passed and neither phase_correct nor blaze_vector were
-                # passed, then use a faster method.
+                # If None was passed and phase_correct is False, then use a faster method.
                 self.display.fill(0)
             else:
                 # Turn the floats in phase space to integer data for the SLM.
