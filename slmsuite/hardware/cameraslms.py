@@ -114,7 +114,7 @@ class FourierSLM(CameraSLM):
         Parameters
         ----------
         vector : array_like
-            Point to TODO
+            Point to measure settle time at via a simple blaze.
         basis : {"ij", "kxy"}
             Basis of vector. This is the vector TODO
         size : int
@@ -122,49 +122,113 @@ class FourierSLM(CameraSLM):
             times the approximate size of a diffraction limited spot.
         times : array_like
             List of times to sweep over in search of the :math:`1/e` settle time.
+            TODO: None documentation
         settle_time_s : float
             Time inbetween measurements to allow the SLM to re-settle without
         plot : bool
             Whether to print debug plots.
         """
-        if basis == "ij":
-            vector = self.ijcam_to_kxyslm(vector)
+
+        # Laser power variation tolerance
+        # Integer overflow
+        # Timing issues with camera (maybe include cam.flush() if this is an issue)
+
+        vector = toolbox.convert_blaze_vector(
+            vector, 
+            from_units=basis, 
+            to_units="kxy",
+            slm=self
+        )
 
         point = self.kxyslm_to_ijcam(vector)
+        blaze = toolbox.phase.blaze(grid=self.slm, vector=vector)
 
-        blaze = toolbox.blaze(grid=self.slm, vector=vector)
+        if size is None:
+            size = int(8 * np.max(self.get_farfield_spot_size(basis="ij")))
+            # print("size", size)
+            # TODO: error check for overlap of the measurement window with the 0th order
+
+        if times is None:
+            times = np.linspace(0, 1, 41)
 
         results = []
 
+        # collect data
         for t in times:
+            # reset the pattern and wait for it to settle
             self.slm.write(None, settle=False)
             time.sleep(settle_time_s)
 
+            # turn on the pattern and wait for time t
             self.slm.write(blaze, settle=False)
             time.sleep(t)
+            
+            # capture the result
+            image = self.cam.get_image().astype(float)
 
-            image = self.cam.get_image()
+            # append the value of the intensity integral over the window
+            results.append(float(analysis.take(image, point, size, centered=True, integrate=True)))
 
-            print(np.sum(image))
-            print(np.max(image))
-            # nonzero = image.ravel()
-            # nonzero = nonzero[nonzero != 0]
-            # print(nonzero)
+        times_clean = []
+        results_clean = []
 
-            _, axs = plt.subplots(1, 2, figsize=(10,4))
-            axs[0].imshow(image)
-            axs[1].imshow(np.squeeze(analysis.take(image, point, size, centered=True, integrate=False)))
-            plt.show()
+        # index of first non-null value
+        exp_start = -1
 
-            results.append(analysis.take(image, point, size, centered=True, integrate=True))
+        # number of consecutive non-null values for considering that the transient has started
+        to_check = 3
+
+        # remove outliers
+        for i in range(len(results)):
+            # check n consecutive elements, if they are non-null consider them valid from the previous one
+            if exp_start == -1 and i + to_check < len(results):
+                all_valid = True
+                for j in range(to_check): # check the following numbers
+                    if results[i+j] == 0:
+                        all_valid = False
+                if all_valid == True: # found n consecutive non-null elements
+                    if i == 0: # add the previous element to the results cleaned
+                        exp_start = 0
+                    else:
+                        exp_start = i-1
+                        results_clean.append(results[exp_start])
+                        times_clean.append(times[exp_start])
+                    results_clean.append(results[i])
+                    times_clean.append(times[i])
+            else:
+                if results[i] != 0: # remove zeros given by camera errors
+                    results_clean.append(results[i])
+                    times_clean.append(times[i])
+
+        # save communication delay, time tag before start of the transient
+        com_time = times[exp_start]
+
+        # function to interpolate
+        def exponential(x, a, b, c):
+            return c - a*np.exp(b*x)
+
+        # fit the date with the function
+        params, _ = optimize.curve_fit(exponential, times_clean, results_clean, maxfev = 10000)
+        a, b, c = params
+
+        # evaluate the fitting function in the interval
+        x_interp = np.linspace(min(times_clean), max(times_clean), 100)
+        y_interp = exponential(x_interp, a, b, c)
 
         if plot:
-            plt.plot(times, np.squeeze(results), 'k*')
-            plt.ylabel("Signal [a.u.]")
-            plt.xlabel("Time [sec]")
+            plt.plot(x_interp, y_interp, "--", linewidth = 2, color = 'red', label = 'interpolation')
+            plt.plot(times, results, "k*", markersize = 7, label = 'capta')
+            plt.xlabel('time, s')
+            plt.ylabel('signal intensity, a.u.')
+            plt.legend(loc = 'lower right')
             plt.show()
 
-        return results
+        print("Communication time:", int(round((1e3*com_time))), "ms")
+        print("Settle time:", int(round((1e3*-1/b))), "ms")
+
+        set_time = -1/b
+
+        return [set_time, com_time]
 
     ### Fourier Calibration ###
 

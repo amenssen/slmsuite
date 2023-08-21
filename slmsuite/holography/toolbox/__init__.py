@@ -41,21 +41,24 @@ def convert_blaze_vector(
         Blaze :math:`k_x` normalized to wavenumber :math:`k`, i.e. :math:`\frac{k_x}{k}`.
         Equivalent to radians in the small angle approximation.
         This is the default unit for :mod:`slmsuite`.
+
         ``"knm"``
         Computational blaze units for a given Fourier domain ``shape``.
         This corresponds to integer points on the grid of this
         (potentially padded) SLM's Fourier transform.
         See :class:`~slmsuite.holography.Hologram`.
-
         The ``"knm"`` basis is centered at ``shape/2``, unlike all of the other units.
 
         ``"ij"``
         Camera pixel units.
+
         ``"freq"``
         Pixel frequency of a grating producing the blaze.
         e.g. 1/16 is a grating with a period of 16 pixels.
+
         ``"lpmm"``
         Line pairs per mm or lines per mm of a grating producing the blaze.
+
         ``"rad"``, ``"mrad"``, ``"deg"``
         Angle at which light is blazed in various units. Small angle approximation is assumed.
 
