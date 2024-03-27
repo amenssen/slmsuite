@@ -236,7 +236,21 @@ class AlliedVision(Camera):
                 self.cam.SensorBitDepth.set(value[1])
                 break
             raise RuntimeError("ADC bitdepth {} not found.".format(bitdepth))
+    def set_pixel_format(self,index):
+         # Get pixel formats available in the camera
+        fmts = self.cam.get_pixel_formats()
 
+        # In this case , we want a format that supports colors
+        #fmts = intersect_pixel_formats(fmts , COLOR_PIXEL_FORMATS)
+
+        # In this case , we want a format that is compatible with OpenCV
+        #fmts = intersect_pixel_formats(fmts , OPENCV_PIXEL_FORMATS)
+
+        if fmts:
+            self.cam.set_pixel_format(fmts[index])
+
+        else:
+            print('Abort. No valid pixel format found.')
     def get_adc_bitdepth(self):
         """
         Get the digitization bitdepth.
