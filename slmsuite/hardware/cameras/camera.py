@@ -244,7 +244,8 @@ class Camera:
             imlist[i] = self.get_image()
 
         return imlist
-
+    
+    
     def autoexposure(
         self,
         set_fraction=0.5,

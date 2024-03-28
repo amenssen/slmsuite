@@ -272,9 +272,31 @@ class AlliedVision(Camera):
         """See :meth:`.Camera.set_exposure`."""
         self.cam.ExposureTime.set(float(exposure_s * 1e6))
 
-    def set_woi(self, woi=None):
+    def set_woi(self, woi=None,mult=8):
         """See :meth:`.Camera.set_woi`."""
-        return
+
+           #woi is [x_coord,delta_x,y_coord,delta_y], where x and y coordinates are at the centre of the woi.
+        if woi != None:
+            x_out=woi[0]-8
+            roi_deltax=woi[1]+16
+            y_out=woi[2]-8
+            roi_deltay=woi[3]+16
+            
+            roi_deltax=mult*np.ceil(roi_deltax/mult)
+            roi_deltay=mult*np.ceil(roi_deltay/mult)
+            #x_out=int(2*round(x_out/2))
+            #y_out=int(2*round(y_out/2))
+            cam=self.cam
+            cam.Height.set(roi_deltay) 
+            cam.Width.set(roi_deltax) 
+            offsetx_calc = int(x_out) - np.mod(int(x_out),2)
+            offsety_calc = int(y_out) - np.mod(int(y_out),2)
+            cam.OffsetX.set(offsetx_calc) 
+            cam.OffsetY.set(offsety_calc) 
+
+            return np.array([x_out,roi_deltax,y_out,roi_deltay])
+        else:
+            return
 
     def get_image(self, timeout_s=1):
         """See :meth:`.Camera.get_image`."""
@@ -283,11 +305,12 @@ class AlliedVision(Camera):
         # Convert timeout_s to ms
         frame = self.cam.get_frame(timeout_ms=int(1e3 * timeout_s))
         frame = frame.as_numpy_ndarray()
-
+        if np.amax(frame) == 510:
+            print("lol")
         # We have noticed that sometimes the camera gets into a state where
         # it returns a frame of all zeros apart from one pixel with value of 31.
         # This method is admittedly a hack to try getting a frame a few more times.
-        # We welcome contributions to fix this.
+        # We welcome contributions to fix this. or np.amax(frame) == 510
         while np.sum(frame) == np.amax(frame) == 31 and time.time() - t < timeout_s:
             frame = self.cam.get_frame(timeout_ms=int(1e3 * timeout_s))
             frame = frame.as_numpy_ndarray()
