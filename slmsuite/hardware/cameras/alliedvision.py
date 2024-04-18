@@ -7,11 +7,13 @@ as the :class:`AlliedVision` class makes use of these features. See especially t
 `vimba python manual <https://github.com/alliedvision/VimbaPython/blob/master/Documentation/Vimba%20Python%20Manual.pdf>`_
 for reference.
 """
-
+import sys
 import time
 import numpy as np
-
+from vimba import Frame,AllocationMode
+from vimba import Camera as VimbaCam
 from slmsuite.hardware.cameras.camera import Camera
+from typing import Optional, Tuple
 
 try:
     import vimba
@@ -122,7 +124,7 @@ class AlliedVision(Camera):
         self.cam.TriggerMode.set("Off")
         self.cam.TriggerActivation.set("RisingEdge")
         self.cam.TriggerSource.set("Software")
-
+        self.frame_storage=[]
     def close(self, close_sdk=True):
         """
         See :meth:`.Camera.close`
@@ -297,7 +299,64 @@ class AlliedVision(Camera):
             return np.array([x_out,roi_deltax,y_out,roi_deltay])
         else:
             return
+    
+    # def frame_handler(self, cam, frame):
+    #     if frame.get_status() == FrameStatus.Complete:
+    #         # Store the frame's data as a numpy array
+    #         
+    #     cam.queue_frame(frame)
+    def frame_handler(self,cam: VimbaCam, frame: Frame):
+       # print('{} acquired {}'.format(cam, frame), flush=True)
+        self.frame_storage=frame.as_numpy_ndarray()
+        cam.queue_frame(frame)
+    
+    def parse_args(self) -> Tuple[Optional[str], AllocationMode]:
+        args = sys.argv[1:]
+        argc = len(args)
 
+        allocation_mode = AllocationMode.AnnounceFrame
+        cam_id = ""
+        for arg in args:
+            if arg in ('/h', '-h'):
+                print_usage()
+                sys.exit(0)
+            elif arg in ('/x', '-x'):
+                allocation_mode = AllocationMode.AllocAndAnnounceFrame
+            elif not cam_id:
+                cam_id = arg
+
+        if argc > 2:
+            abort(reason="Invalid number of arguments. Abort.", return_code=2, usage=True)
+
+        return (cam_id if cam_id else None, allocation_mode)
+    
+    def start_streaming_images(self, buffer_count=10):
+        print('Starting image stream...')
+        self.cam.AcquisitionMode.set("Continuous")
+
+        #cam_id, allocation_mode = self.parse_args()
+        self.cam.start_streaming(handler=self.frame_handler, buffer_count=buffer_count)#,allocation_mode=allocation_mode)
+        #cam.start_streaming(handler=frame_handler, buffer_count=10, allocation_mode=allocation_mode)
+
+    def stop_streaming_images(self):
+        print('Stopping image stream...')
+        self.cam.stop_streaming()
+        self.cam.AcquisitionMode.set("SingleFrame")
+    def get_captured_images(self, clear_after=True):
+        """
+        Retrieve captured images and optionally clear the storage after retrieval.
+
+        Parameters:
+            clear_after (bool): Whether to clear the stored images after retrieving them.
+
+        Returns:
+            list of numpy.ndarray: List containing the captured image data.
+        """
+        images = self.frame_storage[:,:,0]
+
+        return images
+    
+    
     def get_image(self, timeout_s=1):
         """See :meth:`.Camera.get_image`."""
         t = time.time()
@@ -311,7 +370,7 @@ class AlliedVision(Camera):
         # it returns a frame of all zeros apart from one pixel with value of 31.
         # This method is admittedly a hack to try getting a frame a few more times.
         # We welcome contributions to fix this. or np.amax(frame) == 510
-        while np.sum(frame) == np.amax(frame) == 31 and time.time() - t < timeout_s:
+        while np.sum(frame) == np.amax(frame) == 31 or np.amax(frame) == 510 and time.time() - t < timeout_s:
             frame = self.cam.get_frame(timeout_ms=int(1e3 * timeout_s))
             frame = frame.as_numpy_ndarray()
 
