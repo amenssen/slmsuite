@@ -364,13 +364,13 @@ class AlliedVision(Camera):
         # Convert timeout_s to ms
         frame = self.cam.get_frame(timeout_ms=int(1e3 * timeout_s))
         frame = frame.as_numpy_ndarray()
-        if np.amax(frame) == 510:
-            print("lol")
+        if np.sum(frame) == np.amax(frame) == 31 or np.sum(frame) == np.amax(frame) == 510:
+            print("Cam error")
         # We have noticed that sometimes the camera gets into a state where
         # it returns a frame of all zeros apart from one pixel with value of 31.
         # This method is admittedly a hack to try getting a frame a few more times.
         # We welcome contributions to fix this. or np.amax(frame) == 510
-        while np.sum(frame) == np.amax(frame) == 31 or np.amax(frame) == 510 and time.time() - t < timeout_s:
+        while np.sum(frame) == np.amax(frame) == 31 or np.sum(frame) == np.amax(frame) == 510 and time.time() - t < timeout_s:
             frame = self.cam.get_frame(timeout_ms=int(1e3 * timeout_s))
             frame = frame.as_numpy_ndarray()
 
